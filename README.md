@@ -1,7 +1,7 @@
 # jason_normalizing_flows
 
-Todo
-##1. 데이터 받아오기
+## Todo
+1. 데이터 받아오기
   MNIST, TFD, SVHN, CIFAR-10 받아오기
 2. 데이터 텐서화
   받아온 데이터 1 dimensional tensor화 시키기
