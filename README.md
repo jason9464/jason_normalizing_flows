@@ -10,10 +10,10 @@
   TFD: Approx, whitening
   SVHN, CIFAR-10: ZCA
 ### 4. 모델 구성
-  MNIST: 1000 units, 5 hidden layers
-  TFD: 5000 units, 4 hidden layers
-  SVHN: 2000 units, 4 hidden layers
-  CIFAR-10: 2000 units, 4 hidden layers
+    MNIST: 1000 units, 5 hidden layers
+    TFD: 5000 units, 4 hidden layers
+    SVHN: 2000 units, 4 hidden layers
+    CIFAR-10: 2000 units, 4 hidden layers
 ### 5. 손실 함수, 최적화 구현
   #### Loss function
     MNIST: logistic
