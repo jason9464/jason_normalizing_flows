@@ -3,7 +3,6 @@ Todo
 1. Dequantize 하기
 2. TFD dataset 찾기
 """
-import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.utils.data as data
