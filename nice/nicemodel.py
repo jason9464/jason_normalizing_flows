@@ -27,7 +27,6 @@ class NICEModel(nn.Module):
         x = self.coupling_layer(x, "even")
         x = self.coupling_layer(x, "odd")
         x = torch.matmul(x, torch.diag(torch.exp(self.scaling_tensor)))
-        print(x)
         return x
 
     def inverse(self, x):
@@ -58,11 +57,5 @@ class NICEModel(nn.Module):
             it_even = F.relu(self.fc5(it_even))
             it_even = F.relu(self.fc6(it_even))
             it_even = F.relu(self.fc7(it_even))
-
-        for i in range(len(input_tensor)):
-            if i % 2 == 0:
-                input_tensor[i] = it_even[i//2]
-            else:
-                input_tensor[i] = it_odd[i//2]
 
         return input_tensor
