@@ -15,7 +15,7 @@ for epoch in range(2):
         optimizer.zero_grad()
 
         outputs = nm(inputs)
-        loss = loss_functions.logistic_distribution(outputs)
+        loss = loss_functions.logistic_distribution(outputs, nm.scaling_tensor)
         print(loss)
         loss.backward()
         optimizer.step()
