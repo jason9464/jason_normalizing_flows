@@ -22,10 +22,10 @@ class NICEModel(nn.Module):
         self.scaling_tensor = nn.Parameter(torch.zeros(28*28))
         
     def forward(self, x):
-        x = self.coupling_layer(x, "even")
         x = self.coupling_layer(x, "odd")
         x = self.coupling_layer(x, "even")
         x = self.coupling_layer(x, "odd")
+        x = self.coupling_layer(x, "even")
         x = torch.matmul(x, torch.diag(torch.exp(self.scaling_tensor)))
         return x
 
@@ -42,20 +42,22 @@ class NICEModel(nn.Module):
         it_odd = input_tensor[1::2]
 
         if immobile == 'even':
-            it_odd = F.relu(self.fc1(it_odd))
-            it_odd = F.relu(self.fc2(it_odd))
-            it_odd = F.relu(self.fc3(it_odd))
-            it_odd = F.relu(self.fc4(it_odd))
-            it_odd = F.relu(self.fc5(it_odd))
-            it_odd = F.relu(self.fc6(it_odd))
-            it_odd = F.relu(self.fc7(it_odd))
+            temp = F.relu(self.fc1(it_even))
+            temp = F.relu(self.fc2(temp))
+            temp = F.relu(self.fc3(temp))
+            temp = F.relu(self.fc4(temp))
+            temp = F.relu(self.fc5(temp))
+            temp = F.relu(self.fc6(temp))
+            temp = F.relu(self.fc7(temp))
+            it_odd = it_odd + temp
         elif immobile == 'odd':
-            it_even = F.relu(self.fc1(it_even))
-            it_even = F.relu(self.fc2(it_even))
-            it_even = F.relu(self.fc3(it_even))
-            it_even = F.relu(self.fc4(it_even))
-            it_even = F.relu(self.fc5(it_even))
-            it_even = F.relu(self.fc6(it_even))
-            it_even = F.relu(self.fc7(it_even))
+            temp = F.relu(self.fc1(it_odd))
+            temp = F.relu(self.fc2(temp))
+            temp = F.relu(self.fc3(temp))
+            temp = F.relu(self.fc4(temp))
+            temp = F.relu(self.fc5(temp))
+            temp = F.relu(self.fc6(temp))
+            temp = F.relu(self.fc7(temp))
+            it_even = it_even + temp
 
         return input_tensor
