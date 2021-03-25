@@ -1,63 +1,74 @@
 """
 Todo
 
-1. scaling matrix 구현하기
-2. 같은 형태의 matrix라도 따로 layer를 구성해야 하는가?
-
 """
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import math
+import torch.nn.init as init
 
-class NICEModel(nn.Module):
-    def __init__(self):
-        super(NICEModel, self).__init__()
-        self.fc1 = nn.Linear(392, 1000)
-        self.fc2 = nn.Linear(1000, 1000)
-        self.fc3 = nn.Linear(1000, 1000)
-        self.fc4 = nn.Linear(1000, 1000)
-        self.fc5 = nn.Linear(1000, 1000)
-        self.fc6 = nn.Linear(1000, 1000)
-        self.fc7 = nn.Linear(1000, 392)
-        self.scaling_tensor = nn.Parameter(torch.zeros(28*28))
-        
-    def forward(self, x):
-        x = self.coupling_layer(x, "odd")
-        x = self.coupling_layer(x, "even")
-        x = self.coupling_layer(x, "odd")
-        x = self.coupling_layer(x, "even")
-        x = torch.matmul(x, torch.diag(torch.exp(self.scaling_tensor)))
-        return x
+class CouplingLayer(nn.Module):
+    def __init__(self, immobile):
+        super(CouplingLayer, self).__init__()
 
-    def inverse(self, x):
-        raise NotImplementedError
+        self.immobile = immobile
+
+        layers = [nn.Linear(392, 1000), nn.ReLU()]
+        for _ in range(5):
+            layers.append(nn.Linear(1000, 1000))
+            layers.append(nn.ReLU())
+        layers.append(nn.Linear(1000, 392))
+        layers.append(nn.ReLU())     
+
+        self.layer1 = nn.Sequential(*layers)
 
     """
     1. Partitioning input tensor by it_even, it_odd
     2. set immobile tensor
     3. set fully connected layer on mobile tensor
     """
-    def coupling_layer(self, input_tensor, immobile):
-        it_even = input_tensor[0::2]
-        it_odd = input_tensor[1::2]
+    def forward(self, x):
+        immobile = self.immobile
+        
+        it_even = x[0::2].to("cuda")
+        it_odd = x[1::2].to("cuda")
 
         if immobile == 'even':
-            temp = F.relu(self.fc1(it_even))
-            temp = F.relu(self.fc2(temp))
-            temp = F.relu(self.fc3(temp))
-            temp = F.relu(self.fc4(temp))
-            temp = F.relu(self.fc5(temp))
-            temp = F.relu(self.fc6(temp))
-            temp = F.relu(self.fc7(temp))
+            temp = self.layer1(it_even)
             it_odd = it_odd + temp
         elif immobile == 'odd':
-            temp = F.relu(self.fc1(it_odd))
-            temp = F.relu(self.fc2(temp))
-            temp = F.relu(self.fc3(temp))
-            temp = F.relu(self.fc4(temp))
-            temp = F.relu(self.fc5(temp))
-            temp = F.relu(self.fc6(temp))
-            temp = F.relu(self.fc7(temp))
+            temp = self.layer1(it_odd)
             it_even = it_even + temp
+        
+        output_tensor = torch.zeros(28*28).to("cuda")
 
-        return input_tensor
+        output_tensor[0::2] = it_even
+        output_tensor[1::2] = it_odd
+
+        return output_tensor
+
+class NICEModel(nn.Module):
+    def __init__(self):
+        super(NICEModel, self).__init__()
+        self.cl1 = CouplingLayer("odd")
+        self.cl2 = CouplingLayer("even")
+        self.cl3 = CouplingLayer("odd")
+        self.cl4 = CouplingLayer("even")
+        self.scaling_tensor = nn.Parameter(torch.ones(28*28))
+        
+    def forward(self, x):
+        x = self.cl1(x)
+        x = self.cl2(x)
+        x = self.cl3(x)
+        x = self.cl4(x)
+        x= x * torch.exp(self.scaling_tensor)
+
+        return x
+
+    def inverse(self, x):
+        raise NotImplementedError
+
+    
+
+      

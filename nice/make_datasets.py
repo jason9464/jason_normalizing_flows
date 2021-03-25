@@ -6,6 +6,8 @@ Todo
 import torchvision
 import torchvision.transforms as transforms
 import torch.utils.data as data
+import torch
+import nice_utils as nut
 
 # MNIST datasets has error now 
 """torchvision.datasets.MNIST.resources = [
@@ -17,11 +19,13 @@ import torch.utils.data as data
 
 mnist_transform = torchvision.transforms.Compose([
       torchvision.transforms.ToTensor(),
-      torchvision.transforms.Lambda(lambda x : x.view([-1]))
+      torchvision.transforms.Lambda(lambda x : x.view(-1)),
+      torchvision.transforms.Lambda(lambda x : x + torch.rand_like(x)/256.),
+      torchvision.transforms.Lambda(lambda x : nut.rescale_tensor(x, 0, 1))
 ])
 mnist_trainset = torchvision.datasets.MNIST(root="./datasets/mnist", train=True,\
      transform=mnist_transform, download=True)
-mnist_trainset_loader = data.DataLoader(dataset=mnist_trainset, shuffle=True)
+mnist_trainset_loader = data.DataLoader(dataset=mnist_trainset, shuffle=True, batch_size=1)
 
 mnist_testset = torchvision.datasets.MNIST(root="./datasets/mnist", train=False,\
      transform=mnist_transform, download=True)
