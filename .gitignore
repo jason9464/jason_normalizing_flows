@@ -1,4 +1,4 @@
 /datasets
 /.vscode
 .pylintrc
-nice_model.pt
+/nice/bin

@@ -3,10 +3,7 @@ Todo
 
 """
 import torch.nn as nn
-import torch.nn.functional as F
 import torch
-import math
-import torch.nn.init as init
 
 class CouplingLayer(nn.Module):
     def __init__(self, immobile):
@@ -30,9 +27,8 @@ class CouplingLayer(nn.Module):
     """
     def forward(self, x):
         immobile = self.immobile
-        
-        it_even = x[0::2].to("cuda")
-        it_odd = x[1::2].to("cuda")
+        it_even = x[:,0::2].to("cuda")
+        it_odd = x[:,1::2].to("cuda")
 
         if immobile == 'even':
             temp = self.layer1(it_even)
@@ -41,10 +37,10 @@ class CouplingLayer(nn.Module):
             temp = self.layer1(it_odd)
             it_even = it_even + temp
         
-        output_tensor = torch.zeros(28*28).to("cuda")
+        output_tensor = torch.zeros_like(x).to("cuda")
 
-        output_tensor[0::2] = it_even
-        output_tensor[1::2] = it_odd
+        output_tensor[:,0::2] = it_even
+        output_tensor[:,1::2] = it_odd
 
         return output_tensor
 
