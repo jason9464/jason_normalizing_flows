@@ -1,6 +1,5 @@
 """
-Todo
-
+nicemodel.py
 """
 import torch.nn as nn
 import torch
@@ -64,7 +63,4 @@ class NICEModel(nn.Module):
 
     def inverse(self, x):
         raise NotImplementedError
-
-    
-
       

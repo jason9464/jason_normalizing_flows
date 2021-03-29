@@ -1,3 +1,6 @@
+"""
+nice_utils.py
+"""
 import torch
 
 def rescale_tensor(input_tensor, low, high):
@@ -14,3 +17,4 @@ def rescale_tensor(input_tensor, low, high):
     input_tensor = (input_tensor-alpha)/beta
 
     return input_tensor
+    
