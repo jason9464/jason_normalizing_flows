@@ -5,16 +5,16 @@ import torch.nn as nn
 import torch
 
 class CouplingLayer(nn.Module):
-    def __init__(self, immobile):
+    def __init__(self, immobile, input_dim, hidden_dim, layer_num):
         super(CouplingLayer, self).__init__()
 
         self.immobile = immobile
 
-        layers = [nn.Linear(392, 1000), nn.ReLU()]
-        for _ in range(5):
-            layers.append(nn.Linear(1000, 1000))
+        layers = [nn.Linear(input_dim, hidden_dim), nn.ReLU()]
+        for _ in range(layer_num):
+            layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(nn.ReLU())
-        layers.append(nn.Linear(1000, 392))
+        layers.append(nn.Linear(hidden_dim, input_dim))
         layers.append(nn.ReLU())     
 
         self.layer1 = nn.Sequential(*layers)
@@ -44,13 +44,13 @@ class CouplingLayer(nn.Module):
         return output_tensor
 
 class NICEModel(nn.Module):
-    def __init__(self):
+    def __init__(self, input_dim, hidden_dim, layer_num):
         super(NICEModel, self).__init__()
-        self.cl1 = CouplingLayer("odd")
-        self.cl2 = CouplingLayer("even")
-        self.cl3 = CouplingLayer("odd")
-        self.cl4 = CouplingLayer("even")
-        self.scaling_tensor = nn.Parameter(torch.ones(28*28))
+        self.cl1 = CouplingLayer("odd", int(input_dim/2), hidden_dim, layer_num)
+        self.cl2 = CouplingLayer("even", int(input_dim/2), hidden_dim, layer_num)
+        self.cl3 = CouplingLayer("odd", int(input_dim/2), hidden_dim, layer_num)
+        self.cl4 = CouplingLayer("even", int(input_dim/2), hidden_dim, layer_num)
+        self.scaling_tensor = nn.Parameter(torch.ones(input_dim))
         
     def forward(self, x):
         x = self.cl1(x)
