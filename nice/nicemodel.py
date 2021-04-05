@@ -11,29 +11,34 @@ class CouplingLayer(nn.Module):
         self.immobile = immobile
 
         layers = [nn.Linear(input_dim, hidden_dim), nn.ReLU()]
-        for _ in range(layer_num):
+        for _ in range(layer_num-1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(nn.ReLU())
-        layers.append(nn.Linear(hidden_dim, input_dim))
-        layers.append(nn.ReLU())     
+        layers.append(nn.Linear(hidden_dim, input_dim))  
 
         self.layer1 = nn.Sequential(*layers)
+        for i in range(layer_num+1):
+            nn.init.kaiming_uniform_(layers[2*i].weight, nonlinearity='relu')
 
     """
     1. Partitioning input tensor by it_even, it_odd
     2. set immobile tensor
     3. set fully connected layer on mobile tensor
     """
-    def forward(self, x):
+    def forward(self, x, inverse=False):
         immobile = self.immobile
         it_even = x[:,0::2].to("cuda")
         it_odd = x[:,1::2].to("cuda")
 
         if immobile == 'even':
             temp = self.layer1(it_even)
+            if inverse is True:
+                temp *= -1
             it_odd = it_odd + temp
         elif immobile == 'odd':
             temp = self.layer1(it_odd)
+            if inverse is True:
+                temp *= -1
             it_even = it_even + temp
         
         output_tensor = torch.zeros_like(x).to("cuda")
@@ -62,5 +67,11 @@ class NICEModel(nn.Module):
         return x
 
     def inverse(self, x):
-        raise NotImplementedError
+        x = x*torch.exp(-self.scaling_tensor)
+        x = self.cl4(x, inverse=True)
+        x = self.cl3(x, inverse=True)
+        x = self.cl2(x, inverse=True)
+        x = self.cl1(x, inverse=True)
+
+        return x
       

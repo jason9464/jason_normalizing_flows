@@ -2,3 +2,4 @@
 /.vscode
 .pylintrc
 /nice/bin
+/nice/sample
