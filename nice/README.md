@@ -1,4 +1,6 @@
-## Todo
+## NICE: Non-linear Independent Components Estimation
+Pytorch implemantation of Laurent Dinh's paper [*NICE: Non-linear Independent Components Estimation*](https://arxiv.org/abs/1410.8516)
+
 ### 1. 데이터 받아오기
     MNIST, TFD, SVHN, CIFAR-10 받아오기
 ### 2. 데이터 텐서화
