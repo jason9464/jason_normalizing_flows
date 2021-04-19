@@ -2,6 +2,8 @@
 Pytorch implemantation of Laurent Dinh's paper [*NICE: Non-linear Independent Components Estimation*](https://arxiv.org/abs/1410.8516)  
 Currently available only for MNIST dataset  
 
+![mnist_sample](./img/mnist_sample.png)
+
 ### To use  
     train.py [-h] [--dataset DATASET] [--batch_size BATCH_SIZE] [--lr LR] [--b1 B1] [--b2 B2] [--eps EPS]
                 [--weight_decay WEIGHT_DECAY] [--epoch EPOCH] [--new_training NEW_TRAINING]
