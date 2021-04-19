@@ -29,7 +29,7 @@ Sampling data of MNIST dataset after 60 epoch
 ### Preprocessing
 #### Dequantize
     CIFAR-10: Uniform noise of 1/128 and rescale the data to be in [-1, 1]D for CIFAR-10
-    그외: Uniform noise of 1/256 to the data and rescale it to be in [0, 1]D after dequantization
+    Others: Uniform noise of 1/256 to the data and rescale it to be in [0, 1]D after dequantization
 #### Etc
     MNIST: None
     TFD: Approx, whitening
