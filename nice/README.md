@@ -4,10 +4,7 @@ Currently available only for MNIST dataset
 
 
 ### Sampling
-<img src = "./img/mnist_sample.png" width="40%">
-
-출처: https://pongsoyun.tistory.com/125 [palette]
-![mnist_sample](./img/mnist_sample.png){: width="300", height="300"}  
+<img src = "./img/mnist_sample.png" width="40%"  
 Sampling data of MNIST dataset after 60 epoch  
 
 ### To use  
