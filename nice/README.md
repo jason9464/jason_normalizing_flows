@@ -4,7 +4,7 @@ Currently available only for MNIST dataset
 
 
 ### Sampling
-<img src = "./img/mnist_sample.png" width="40%"  
+<img src = "./img/mnist_sample.png" width="40%">  
 Sampling data of MNIST dataset after 60 epoch  
 
 ### To use  
