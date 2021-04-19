@@ -1,5 +1,25 @@
 ## NICE: Non-linear Independent Components Estimation
-Pytorch implemantation of Laurent Dinh's paper [*NICE: Non-linear Independent Components Estimation*](https://arxiv.org/abs/1410.8516)
+Pytorch implemantation of Laurent Dinh's paper [*NICE: Non-linear Independent Components Estimation*](https://arxiv.org/abs/1410.8516)  
+Currently available only for MNIST dataset  
+
+### To use  
+    train.py [-h] [--dataset DATASET] [--batch_size BATCH_SIZE] [--lr LR] [--b1 B1] [--b2 B2] [--eps EPS]
+                [--weight_decay WEIGHT_DECAY] [--epoch EPOCH] [--new_training NEW_TRAINING]
+              
+    optional arguments:
+    -h, --help            show this help message and exit
+    --dataset DATASET     Select dataset to train. expected value : [mnist, tfd, svhn, cifar10]
+    --batch_size BATCH_SIZE
+                            Number of data to learn at a time
+    --lr LR               Learning rate for optimization
+    --b1 B1               Beta1 for AdaM optimizer
+    --b2 B2               Beta2 for AdaM optimizer
+    --eps EPS             Epsilon for AdaM optimizer
+    --weight_decay WEIGHT_DECAY
+                            Weight decay for AdaM optimizer
+    --epoch EPOCH         Set training epoch
+    --new_training NEW_TRAINING
+                            1 to Start new training 0 to continue existing training
 
 ### 1. 데이터 받아오기
     MNIST, TFD, SVHN, CIFAR-10 받아오기
