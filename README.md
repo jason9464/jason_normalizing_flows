@@ -1,4 +1,10 @@
-# jason_normalizing_flows
+# jason_normalizing_flow  
+
+Normalizing flows implementation by Heo Jaeseung
+Implemented: NICE  
+To be implemented: RealNVP  
+
+
 
 ## Todo
 ### 1. 데이터 받아오기
