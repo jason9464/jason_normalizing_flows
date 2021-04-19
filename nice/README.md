@@ -4,8 +4,8 @@ Currently available only for MNIST dataset
 
 
 ### Sample  
-![mnist_sample](./img/mnist_sample.png)
-Sample after 60 epoch
+![mnist_sample](./img/mnist_sample.png)  
+Sample after 60 epoch  
 
 ### To use  
     train.py [-h] [--dataset DATASET] [--batch_size BATCH_SIZE] [--lr LR] [--b1 B1] [--b2 B2] [--eps EPS]
