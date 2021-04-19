@@ -3,9 +3,9 @@ Pytorch implemantation of Laurent Dinh's paper [*NICE: Non-linear Independent Co
 Currently available only for MNIST dataset  
 
 
-### Sample  
+### Sampling
 ![mnist_sample](./img/mnist_sample.png)  
-Sample after 60 epoch  
+Sampling data of MNIST dataset after 60 epoch  
 
 ### To use  
     train.py [-h] [--dataset DATASET] [--batch_size BATCH_SIZE] [--lr LR] [--b1 B1] [--b2 B2] [--eps EPS]
