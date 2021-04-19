@@ -6,25 +6,17 @@ import torch.optim as optim
 import torch
 import torch.utils.data as data
 import torchvision
-import torchvision.transforms as transforms
 import tqdm
+import numpy as np
 import loss_functions
 import make_datasets
 import nice_utils as nut
-import numpy as np
+import validate
 from nicemodel import NICEModel
-from validate import make_image
 
-def train(args):
-    path = "./bin/nice_" + args.dataset + "_model.pt"
+
+def load_dataset(args):
     batch_size = args.batch_size
-
-    torch.autograd.set_detect_anomaly(True)
-
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
 
     if args.dataset == "mnist":
         # MNIST datasets has HTTP error now 
@@ -67,6 +59,21 @@ def train(args):
         hidden_dim = 2000
         layer_num = 4
 
+    return trainset_loader, testset_loader, input_dim, hidden_dim, layer_num
+
+def train(args):
+    path = "./bin/nice_" + args.dataset + "_model.pt"
+    batch_size = args.batch_size
+
+    torch.autograd.set_detect_anomaly(True)
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
+    trainset_loader, testset_loader, input_dim, hidden_dim, layer_num = load_dataset(args)
+
     nm = NICEModel(input_dim, hidden_dim, layer_num).to(device)
     optimizer = optim.Adam(nm.parameters(), lr=args.lr, betas=(args.b1, args.b2), \
         eps=args.eps, weight_decay=args.weight_decay)
@@ -92,7 +99,8 @@ def train(args):
                 inputs = nut.zca_whitening(inputs,0,1)
             outputs = nm(inputs)
 
-            log_likelihood = loss_functions.logistic_distribution(outputs, nm.scaling_tensor, batch_size)
+            log_likelihood = loss_functions.logistic_distribution(outputs, \
+                nm.scaling_tensor, batch_size)
             each_loss = -(log_likelihood + nm.scaling_tensor)
             batch_loss = torch.sum(each_loss, dim=1)
             loss = torch.mean(batch_loss)
@@ -116,7 +124,8 @@ def train(args):
                 log_randlist = np.random.logistic(size=[1,28*28])
                 sample_tensor = nm.inverse(torch.tensor(log_randlist).float().to(device))
                 number_tensor = torch.cat((number_tensor, sample_tensor))
-            make_image(number_tensor, [10,10], "./sample/" + args.dataset + "_" + str(epoch) + ".png", device)
+            validate.make_image(number_tensor, [10,10], "./sample/" + \
+                args.dataset + "_" + str(epoch) + ".png", device)
 
             torch.save({
                 'epoch' : epoch,
@@ -129,8 +138,9 @@ def train(args):
 
     print("Finish training")
 
-    print("Start validation task")
+    print("Start test task")
     total_loss = 0
+    encode_num_list = [0 for i in range(2000)]
     for _, datas in enumerate(tqdm.tqdm(testset_loader, 0)):
         inputs, _ = datas
 
@@ -138,25 +148,23 @@ def train(args):
             inputs = nut.zca_whitening(inputs,0,1)
 
         outputs = nm(inputs)
-        log_likelihood = loss_functions.logistic_distribution(outputs, nm.scaling_tensor, batch_size)
+        log_likelihood = loss_functions.logistic_distribution(outputs, \
+            nm.scaling_tensor, batch_size)
         each_loss = -(log_likelihood + nm.scaling_tensor)
         batch_loss = torch.sum(each_loss, dim=1)
         loss = torch.sum(batch_loss)
         total_loss = total_loss + loss
 
-    print("Validation loss: {:.2f}".format(total_loss/10000))
+        encode_num_list = validate.encode_output(encode_num_list, outputs)
 
-
-        
-
-
-
+    print("Test loss: {:.2f}".format(total_loss/10000))
+    validate.make_encode_num_fig(encode_num_list)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=\
-        "NICE training program. expected value : [mnist, tfd, svhn, cifar10]")
+        "NICE training program.")
     parser.add_argument("--dataset", type=str, default="mnist", \
-        help="Select dataset to train")
+        help="Select dataset to train. expected value : [mnist, tfd, svhn, cifar10]")
     parser.add_argument("--batch_size", type=int, default=100, \
         help="Number of data to learn at a time")
     parser.add_argument("--lr", type=float, default=0.001, \
@@ -169,10 +177,9 @@ if __name__ == "__main__":
         help="Epsilon for AdaM optimizer")
     parser.add_argument("--weight_decay", type=float, default=0, \
         help="Weight decay for AdaM optimizer")
-    parser.add_argument("--epoch", type=int, default=10000, \
+    parser.add_argument("--epoch", type=int, default=100, \
         help="Set training epoch")
-    parser.add_argument("--new_training", type=int, default=0, \
-        help="1 to Start new training\n0 to continue existing training")
-    
+    parser.add_argument("--new_training", type=int, default=1, \
+        help="1 to Start new training\n0 to continue existing training") 
     arguments = parser.parse_args()
     train(arguments)
