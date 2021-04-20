@@ -8,8 +8,6 @@ Pytorch implemantation of Laurent Dinh's paper [*Density estimation using Real N
 2. Data preprocessing  
     2-1 Jittering procedure  
     2-2 Reduce boundary effects  
-        $$logit(alpha+(1-alpha)*x/256)
-        when alpha = 0.05
     2-3 horizontal filps  
         For CIFAR-10, CelebA, LSUN  
     2-4 Etc  
@@ -20,8 +18,6 @@ Pytorch implemantation of Laurent Dinh's paper [*Density estimation using Real N
 3. Model configure  
     3-1. Multiscale architecture  
         3 checkerboard masking -> squeezing -> 3 channel-wise masking -> 4 checkerboard masking  
-        Masking formula  
-            $$y = b\*x + (1-b)\*(x\*(exp(s(b\*x))+t(b\*x)))  
         repeat until the input of the last coupling layer is 4\*4\*c  
     3-2. Coupling layer  
         x1 = x1  
