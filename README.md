@@ -2,4 +2,4 @@
 
 Normalizing flows implementation by Heo Jaeseung    
 Implemented: [NICE](./nice)  
-To be implemented: RealNVP  
+To be implemented: [RealNVP](./realnvp)  
