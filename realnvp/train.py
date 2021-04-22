@@ -14,6 +14,5 @@ if __name__ == "__main__":
     tl, _, _ = make_datasets.load_data(arguments)
     dataiter = iter(tl)
     a, b = dataiter.next()
-    c = realnvp.ResBlock(3)
-    d = c(a)
+
     print(1)
