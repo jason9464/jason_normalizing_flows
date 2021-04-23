@@ -165,3 +165,85 @@ class CouplingLayer(nn.Module):
         x = b*x + (1-b)*(x*torch.exp(s)+t)
 
         return x
+
+class RealNVPBlock(nn.Module):
+    def __init__(self, in_channels, hid_channels, resblock_num):
+        super(RealNVPBlock, self).__init__()
+        before_squeeze_list = [
+            CouplingLayer(in_channels, hid_channels, resblock_num, 'checkerboard', 'odd'),
+            CouplingLayer(in_channels, hid_channels, resblock_num, 'checkerboard', 'even'),
+            CouplingLayer(in_channels, hid_channels, resblock_num, 'checkerboard', 'odd')
+        ]
+
+        after_squeeze_list = [
+            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'channelwise', 'first'),
+            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'channelwise', 'second'),
+            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'channelwise', 'first'),
+            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'odd'),
+            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'even'),
+            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'odd'),
+            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'even')
+        ]
+
+        self.before_squeeze_layers = nn.Sequential(*before_squeeze_list)
+        self.after_squeeze_layers = nn.Sequential(*after_squeeze_list)
+
+    def squeeze(self, x):
+        x1 = x[:,:,0::2,0::2]
+        x2 = x[:,:,0::2,1::2]
+        x3 = x[:,:,1::2,0::2]
+        x4 = x[:,:,1::2,1::2]
+
+        x = torch.cat((x1,x2,x3,x4),dim=1)
+
+        return x
+
+    def forward(self, x):
+        x = self.before_squeeze_layers(x)
+        x = self.squeeze(x)
+        x = self.after_squeeze_layers(x)
+
+        return x
+
+class RealNVP(nn.Module):
+    def __init__(self, in_dim, in_channels, hid_channels, resblock_num):
+        super(RealNVP, self).__init__()
+        self.recursion_num = int(torch.log2(torch.Tensor([in_dim])).item()) -1
+
+        realnvp_block_list = [RealNVPBlock(in_channels*2**i, hid_channels, resblock_num) \
+            for i in range(self.recursion_num)]
+        self.realnvp_layers = nn.ModuleList(realnvp_block_list)
+
+    def unsqueeze(self, x):
+        B, C, H, W = x.size()
+        C_div4 = C//4
+        ret = torch.zeros(B, C//4, H*2, W*2)
+
+        ret[:,:,0::2,0::2] = x[:,:C_div4]
+        ret[:,:,0::2,1::2] = x[:,C_div4:2*C_div4]
+        ret[:,:,1::2,0::2] = x[:,2*C_div4:3*C_div4]
+        ret[:,:,1::2,1::2] = x[:,3*C_div4:4*C_div4]
+
+        return ret
+
+    def figure_out(self, x):
+        B, C, H, W = x.size()
+        half_channel = C//2
+        x1 = x[:,:half_channel]
+        x2 = x[:,half_channel:]
+
+        return x1, x2
+
+    def forward(self, x):
+        fig_out_list = []
+        for i in range(self.recursion_num):
+            x = self.realnvp_layers[i](x)
+            xf , x = self.figure_out(x)
+            fig_out_list.append(xf)
+
+        for i in range(self.recursion_num):
+            xf = fig_out_list.pop()
+            x = torch.cat((xf,x),dim=1)
+            x = self.unsqueeze(x)
+
+        return x

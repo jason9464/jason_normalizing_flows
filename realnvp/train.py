@@ -15,4 +15,7 @@ if __name__ == "__main__":
     dataiter = iter(tl)
     a, b = dataiter.next()
 
+    c = realnvp.RealNVP(32,3,64,8)
+    d = c.forward(a)
+
     print(1)
