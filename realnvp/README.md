@@ -1,4 +1,4 @@
-## DENSITY ESTIMATION USING Reael NVP  
+## DENSITY ESTIMATION USING Real NVP  
 Pytorch implemantation of Laurent Dinh's paper [*Density estimation using Real NVP*](https://arxiv.org/abs/1605.08803)  
 Only for 2^n * 2^n size data  
 Ex) CIFAR-10 (32*32)  
