@@ -9,7 +9,9 @@ Ex) CIFAR-10 (32*32)
     CIFAR-10, Imagenet, LSUN, CelebA  
 #### 2. Data preprocessing  
 ##### 2-1 Jittering procedure  
+    Not implemented
 ##### 2-2 Reduce boundary effects  
+    Not implemented
 ##### 2-3 horizontal filps  
     For CIFAR-10, CelebA, LSUN  
 ##### 2-4 Etc  

@@ -158,13 +158,17 @@ class CouplingLayer(nn.Module):
 
         return mask
 
-    def forward(self, x):
+    def forward(self, x, s_ld=0):
+        B, C, H, W = x.size()
+
         b = self.make_mask(x, self.mask_name, self.immobile)
         s = self.scaling_layer(b*x)
         t = self.transform_layer(b*x)
         x = b*x + (1-b)*(x*torch.exp(s)+t)
 
-        return x
+        s_ld += torch.sum(s.view(B, -1), dim=1)
+
+        return x, s_ld
 
 class RealNVPBlock(nn.Module):
     def __init__(self, in_channels, hid_channels, resblock_num):
@@ -185,8 +189,8 @@ class RealNVPBlock(nn.Module):
             CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'even')
         ]
 
-        self.before_squeeze_layers = nn.Sequential(*before_squeeze_list)
-        self.after_squeeze_layers = nn.Sequential(*after_squeeze_list)
+        self.before_squeeze_layers = nn.ModuleList(before_squeeze_list)
+        self.after_squeeze_layers = nn.ModuleList(after_squeeze_list)
 
     def squeeze(self, x):
         x1 = x[:,:,0::2,0::2]
@@ -198,12 +202,14 @@ class RealNVPBlock(nn.Module):
 
         return x
 
-    def forward(self, x):
-        x = self.before_squeeze_layers(x)
+    def forward(self, x, s_ld=0):
+        for i in range(3):
+            x, s_ld = self.before_squeeze_layers[i](x, s_ld)
         x = self.squeeze(x)
-        x = self.after_squeeze_layers(x)
+        for i in range(7):
+            x. s_ld = self.after_squeeze_layers[i](x, s_ld)
 
-        return x
+        return x, s_ld
 
 class RealNVP(nn.Module):
     def __init__(self, in_dim, in_channels, hid_channels, resblock_num):
@@ -234,10 +240,10 @@ class RealNVP(nn.Module):
 
         return x1, x2
 
-    def forward(self, x):
+    def forward(self, x, s_ld=0):
         fig_out_list = []
         for i in range(self.recursion_num):
-            x = self.realnvp_layers[i](x)
+            x, s_ld = self.realnvp_layers[i](x ,s_ld)
             xf , x = self.figure_out(x)
             fig_out_list.append(xf)
 
@@ -246,4 +252,4 @@ class RealNVP(nn.Module):
             x = torch.cat((xf,x),dim=1)
             x = self.unsqueeze(x)
 
-        return x
+        return x, s_ld

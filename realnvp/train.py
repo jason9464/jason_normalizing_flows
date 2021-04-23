@@ -1,10 +1,12 @@
+import torch
 import argparse
 import make_datasets
 import realnvp
+import loss_function
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=\
-        "NICE training program.")
+        "RealNVP training program.")
     parser.add_argument("--dataset", type=str, default="cifar10", \
         help="Select dataset to train. expected value : [cifar10, imagenet, lsun, celeba]")
     parser.add_argument("--batch_size", type=int, default=64, \
@@ -16,6 +18,7 @@ if __name__ == "__main__":
     a, b = dataiter.next()
 
     c = realnvp.RealNVP(32,3,64,8)
-    d = c.forward(a)
+    out, s_ld = c.forward(a)
+    loss = torch.mean(-loss_function.log_likelihood(out, s_ld, 'normal'))
 
-    print(1)
+    print(loss)
