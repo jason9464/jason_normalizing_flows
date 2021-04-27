@@ -1,5 +1,7 @@
+import torch
 import torchvision
 import torch.utils.data as data
+import realnvp_utils as rut
 
 def load_data(args):
     dataset_name = args.dataset
@@ -8,7 +10,10 @@ def load_data(args):
     if dataset_name == "cifar10":
         cifar10_transform = torchvision.transforms.Compose([
             torchvision.transforms.RandomHorizontalFlip(),
-            torchvision.transforms.ToTensor()
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Lambda(lambda x : x + torch.rand_like(x)/256.),
+            torchvision.transforms.Lambda(lambda x : rut.rescale_tensor(x, 0, 1)),
+            torchvision.transforms.Lambda(lambda x : rut.logit(x, 0.05))
         ])
 
         cifar10_trainset = torchvision.datasets.CIFAR10(root='../datasets/cifar10', train=True, \

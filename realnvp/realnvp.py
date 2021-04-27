@@ -129,6 +129,11 @@ class CouplingLayer(nn.Module):
     
     def make_mask(self, input_x, mask_name, immobile):
         B, C, H, W = input_x.size()
+        """if torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")"""
+        device = torch.device("cpu")
 
         if mask_name == 'checkerboard':
             mask_odd = torch.zeros(1,W)
@@ -156,7 +161,7 @@ class CouplingLayer(nn.Module):
             elif immobile == 'second':
                 mask = torch.cat((mask_zero, mask_one))
 
-        return mask
+        return mask.to(device)
 
     def forward(self, x, s_ld=0):
         B, C, H, W = x.size()
@@ -212,9 +217,9 @@ class RealNVPBlock(nn.Module):
         return x, s_ld
 
 class RealNVP(nn.Module):
-    def __init__(self, in_dim, in_channels, hid_channels, resblock_num):
+    def __init__(self, img_dim, in_channels, hid_channels, resblock_num):
         super(RealNVP, self).__init__()
-        self.recursion_num = int(torch.log2(torch.Tensor([in_dim])).item()) -1
+        self.recursion_num = int(torch.log2(torch.Tensor([img_dim[0]])).item()) -1
 
         realnvp_block_list = [RealNVPBlock(in_channels*2**i, hid_channels, resblock_num) \
             for i in range(self.recursion_num)]
