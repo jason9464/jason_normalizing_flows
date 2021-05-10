@@ -41,13 +41,20 @@ Class
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import realnvp_utils as rut
 
 class WeightNormConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
         super(WeightNormConv2d, self).__init__()
 
-        self.weight_norm_conv2d = nn.utils.weight_norm(
+        # weight norm has zero norm issue now
+        """self.weight_norm_conv2d = nn.utils.weight_norm(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
+        self.weight_norm_conv2d.weight_g.data = torch.ones_like(self.weight_norm_conv2d.weight_g.data)
+        self.weight_norm_conv2d.weight_g.requires_grad = False"""
+        
+
+        self.weight_norm_conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
 
     def forward(self, x):
         return self.weight_norm_conv2d(x)
@@ -118,22 +125,33 @@ class TransformNetwork(nn.Module):
         return x
 
 class CouplingLayer(nn.Module):
-    def __init__(self, in_channels, hid_channels, resblock_num, mask_name, immobile):
+    def __init__(self, input_dim, in_channels, hid_channels, resblock_num, mask_name, immobile):
         super(CouplingLayer, self).__init__()
 
         self.mask_name = mask_name
         self.immobile = immobile
 
+        self.preprocessing_block = nn.Sequential(
+            nn.BatchNorm2d(in_channels),
+            nn.ReLU()
+        )
+
         self.scaling_layer = ScalingNetwork(in_channels, hid_channels, resblock_num)
         self.transform_layer = TransformNetwork(in_channels, hid_channels, resblock_num)
+
+        self.postprocessing_block = nn.Sequential(
+            nn.BatchNorm2d(in_channels)
+        )
+
+        self.mask = self.make_mask(input_dim, mask_name, immobile)
     
-    def make_mask(self, input_x, mask_name, immobile):
-        B, C, H, W = input_x.size()
-        """if torch.cuda.is_available():
+    def make_mask(self, input_dim, mask_name, immobile):
+        B, C, H, W = input_dim
+
+        if torch.cuda.is_available():
             device = torch.device("cuda")
         else:
-            device = torch.device("cpu")"""
-        device = torch.device("cpu")
+            device = torch.device("cpu")
 
         if mask_name == 'checkerboard':
             mask_odd = torch.zeros(1,W)
@@ -166,32 +184,51 @@ class CouplingLayer(nn.Module):
     def forward(self, x, s_ld=0):
         B, C, H, W = x.size()
 
-        b = self.make_mask(x, self.mask_name, self.immobile)
+        x = self.preprocessing_block(x)
+
+        b = self.mask
         s = self.scaling_layer(b*x)
         t = self.transform_layer(b*x)
         x = b*x + (1-b)*(x*torch.exp(s)+t)
+
+        x = self.postprocessing_block(x)
 
         s_ld += torch.sum(s.view(B, -1), dim=1)
 
         return x, s_ld
 
+    def backward(self, x):
+        b = self.mask
+        s = self.scaling_layer(b*x)
+        t = self.transform_layer(b*x)
+        x = b*x + (1-b)*(x-t)*torch.exp(-s)
+
+        return x
+
+
 class RealNVPBlock(nn.Module):
-    def __init__(self, in_channels, hid_channels, resblock_num):
+    def __init__(self, input_dim, in_channels, hid_channels, resblock_num):
         super(RealNVPBlock, self).__init__()
         before_squeeze_list = [
-            CouplingLayer(in_channels, hid_channels, resblock_num, 'checkerboard', 'odd'),
-            CouplingLayer(in_channels, hid_channels, resblock_num, 'checkerboard', 'even'),
-            CouplingLayer(in_channels, hid_channels, resblock_num, 'checkerboard', 'odd')
+            CouplingLayer(input_dim, in_channels, hid_channels, resblock_num, 'checkerboard', 'odd'),
+            CouplingLayer(input_dim, in_channels, hid_channels, resblock_num, 'checkerboard', 'even'),
+            CouplingLayer(input_dim, in_channels, hid_channels, resblock_num, 'checkerboard', 'odd')
         ]
 
+        B, C, H, W = input_dim
+        C *= 4
+        H = H // 2
+        W = W // 2
+        input_dim = B, C, H, W
+        
         after_squeeze_list = [
-            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'channelwise', 'first'),
-            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'channelwise', 'second'),
-            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'channelwise', 'first'),
-            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'odd'),
-            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'even'),
-            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'odd'),
-            CouplingLayer(in_channels*4, hid_channels, resblock_num, 'checkerboard', 'even')
+            CouplingLayer(input_dim, in_channels*4, hid_channels, resblock_num, 'channelwise', 'first'),
+            CouplingLayer(input_dim, in_channels*4, hid_channels, resblock_num, 'channelwise', 'second'),
+            CouplingLayer(input_dim, in_channels*4, hid_channels, resblock_num, 'channelwise', 'first'),
+            CouplingLayer(input_dim, in_channels*4, hid_channels, resblock_num, 'checkerboard', 'odd'),
+            CouplingLayer(input_dim, in_channels*4, hid_channels, resblock_num, 'checkerboard', 'even'),
+            CouplingLayer(input_dim, in_channels*4, hid_channels, resblock_num, 'checkerboard', 'odd'),
+            CouplingLayer(input_dim, in_channels*4, hid_channels, resblock_num, 'checkerboard', 'even')
         ]
 
         self.before_squeeze_layers = nn.ModuleList(before_squeeze_list)
@@ -207,28 +244,54 @@ class RealNVPBlock(nn.Module):
 
         return x
 
+    def unsqueeze(self, x):
+        B, C, H, W = x.size()
+        C = C//4
+
+        y = torch.zeros(B,C,2*H,2*W)
+        y[:,:,0::2,0::2] = x[:,:C]
+        y[:,:,0::2,1::2] = x[:,C:2*C]
+        y[:,:,1::2,0::2] = x[:,2*C:3*C]
+        y[:,:,1::2,1::2] = x[:,3*C:4*C]
+
+        return y
+
     def forward(self, x, s_ld=0):
         for i in range(3):
             x, s_ld = self.before_squeeze_layers[i](x, s_ld)
         x = self.squeeze(x)
         for i in range(7):
-            x. s_ld = self.after_squeeze_layers[i](x, s_ld)
-
+            x, s_ld = self.after_squeeze_layers[i](x, s_ld)
         return x, s_ld
 
-class RealNVP(nn.Module):
-    def __init__(self, img_dim, in_channels, hid_channels, resblock_num):
-        super(RealNVP, self).__init__()
-        self.recursion_num = int(torch.log2(torch.Tensor([img_dim[0]])).item()) -1
+    def backward(self, x):
+        for i in range(7):
+            x = self.after_squeeze_layers[6-i].backward(x)
+        x = rut.unsqueeze(x)
+        for i in range(3):
+            x = self.before_squeeze_layers[2-i].backward(x)
+        return x
 
-        realnvp_block_list = [RealNVPBlock(in_channels*2**i, hid_channels, resblock_num) \
+class RealNVP(nn.Module):
+    def __init__(self, input_dim, in_channels, hid_channels, resblock_num):
+        super(RealNVP, self).__init__()
+        self.recursion_num = int(torch.log2(torch.Tensor([input_dim[2]])).item()) -1
+
+        B, C, H, W = input_dim
+
+        realnvp_block_list = [RealNVPBlock((B, C*2**i, H//2**i, W//2**i), in_channels*2**i, hid_channels, resblock_num) \
             for i in range(self.recursion_num)]
         self.realnvp_layers = nn.ModuleList(realnvp_block_list)
 
     def unsqueeze(self, x):
         B, C, H, W = x.size()
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+        
         C_div4 = C//4
-        ret = torch.zeros(B, C//4, H*2, W*2)
+        ret = torch.zeros(B, C//4, H*2, W*2).to(device)
 
         ret[:,:,0::2,0::2] = x[:,:C_div4]
         ret[:,:,0::2,1::2] = x[:,C_div4:2*C_div4]
@@ -246,6 +309,7 @@ class RealNVP(nn.Module):
         return x1, x2
 
     def forward(self, x, s_ld=0):
+        
         fig_out_list = []
         for i in range(self.recursion_num):
             x, s_ld = self.realnvp_layers[i](x ,s_ld)
@@ -258,3 +322,19 @@ class RealNVP(nn.Module):
             x = self.unsqueeze(x)
 
         return x, s_ld
+
+    def backward(self, x):
+        fig_out_list = []
+        for i in range(self.recursion_num):
+            x = rut.squeeze(x)
+            xf, x = self.figure_out(x)
+            fig_out_list.append(xf)
+
+        for i in range(self.recursion_num):
+            xf = fig_out_list.pop()
+            x = torch.cat((xf,x),dim=1)
+            x = self.realnvp_layers[self.recursion_num-i-1].backward(x)
+
+        return x
+
+
