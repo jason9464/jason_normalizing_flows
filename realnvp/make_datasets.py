@@ -39,7 +39,6 @@ def load_data(args):
     elif dataset_name == "mnist":
         mnist_transform = torchvision.transforms.Compose([
             torchvision.transforms.Resize(32),
-            torchvision.transforms.RandomHorizontalFlip(),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Lambda(lambda x : x + torch.rand_like(x)/256.),
             torchvision.transforms.Lambda(lambda x : rut.rescale_tensor(x, 0, 1)),
