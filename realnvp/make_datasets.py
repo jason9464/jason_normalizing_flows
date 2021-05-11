@@ -36,5 +36,28 @@ def load_data(args):
         raise NotImplementedError
     elif dataset_name == "celeba":
         raise NotImplementedError
+    elif dataset_name == "mnist":
+        mnist_transform = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(32),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Lambda(lambda x : x + torch.rand_like(x)/256.),
+            torchvision.transforms.Lambda(lambda x : rut.rescale_tensor(x, 0, 1)),
+            torchvision.transforms.Lambda(lambda x : rut.logit(x, 0.05))
+        ])
+
+        mnist_trainset = torchvision.datasets.MNIST(root='../datasets/mnist', train=True, \
+            transform=mnist_transform, download=True)
+        testset = torchvision.datasets.MNIST(root='../datasets/mnist', train=False, \
+            transform=mnist_transform, download=True)
+
+        mnist_trainset_len = len(mnist_trainset)
+        trainlen = int(mnist_trainset_len/6*5)
+        validlen = mnist_trainset_len - trainlen
+        trainset, validset = data.dataset.random_split(mnist_trainset, [trainlen, validlen])
+        
+        trainloader = data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+        validloader = data.DataLoader(validset, batch_size=batch_size, shuffle=True)
+        testloader = data.DataLoader(testset, batch_size=batch_size)
 
     return trainloader, validloader, testloader

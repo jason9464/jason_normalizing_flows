@@ -1,43 +1,3 @@
-"""
-RealNVP model
-
-Class
-1. ResBlock
-    define 1 residual block
-
-    Input: parameters of conv layer
-    Output: x = f(x) + x
-
-2. ScalingNetwork
-    define scaling network s
-    cifar10: 8 residual blocks, 64 feature maps, downscale once
-    others: same with README.md
-    use tanh activation to last layer
-
-    Input: resblock_num, parameters of ResBlock
-    Output: output of scaling netowrk
-
-3. TransformNetwork
-    define transform network
-    cifar10: 8 residual blocks, 64 feature maps, downscale once
-    others: same with README.md
-    use affine output
-
-    Input: resblock_num, parameters of ResBlock
-    Output: output of transform netowrk
-
-4. CouplingLayer
-    define coupling layer
-    3 checkerboard masking(B*C*N*N) -> 
-    squeezing -> 
-    3 channel-wise masking(B*4C*N/2*N/2) -> 
-    4 checkerboard masking(B*4C*N/2*N/2)
-
-5. WeightNormConv2d
-    Conv2d layer with weightnorm
-
-6. RealNVP
-"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -49,10 +9,7 @@ class WeightNormConv2d(nn.Module):
 
         # weight norm has zero norm issue now
         """self.weight_norm_conv2d = nn.utils.weight_norm(
-            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
-        self.weight_norm_conv2d.weight_g.data = torch.ones_like(self.weight_norm_conv2d.weight_g.data)
-        self.weight_norm_conv2d.weight_g.requires_grad = False"""
-        
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))"""    
 
         self.weight_norm_conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
 
@@ -69,17 +26,19 @@ class ResBlock(nn.Module):
             nn.BatchNorm2d(hid_channels),
             nn.ReLU(),
             WeightNormConv2d(hid_channels, hid_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(hid_channels)
         )
+
+        self.bn = nn.BatchNorm2d(hid_channels)
         
     def forward(self, x):
         x = self.res_block(x) + x
+        x = self.bn(x)
         x = F.relu(x)
 
         return x
 
 class ResNet(nn.Module):
-    def __init__(self, in_channels, hid_channels, resblock_num):
+    def __init__(self, in_channels, hid_channels, out_channels, resblock_num):
         super(ResNet, self).__init__()
 
         self.preprocessing_block = nn.Sequential(
@@ -92,35 +51,12 @@ class ResNet(nn.Module):
         self.resblocks = nn.Sequential(*resblock_list)
 
         self.postprocessing_block = \
-            WeightNormConv2d(hid_channels, in_channels, kernel_size=3, stride=1, padding=1)
+            WeightNormConv2d(hid_channels, out_channels, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
         x = self.preprocessing_block(x)
         x = self.resblocks(x)
         x = self.postprocessing_block(x)
-
-        return x
-
-class ScalingNetwork(nn.Module):
-    def __init__(self, in_channels, hid_channels, resblock_num):
-        super(ScalingNetwork, self).__init__()
-
-        self.scaling_layer = ResNet(in_channels, hid_channels, resblock_num)
-
-    def forward(self, x):
-        x = self.scaling_layer(x)
-        x = torch.tanh(x)
-
-        return x
-
-class TransformNetwork(nn.Module):
-    def __init__(self, in_channels, hid_channels, resblock_num):
-        super(TransformNetwork, self).__init__()
-
-        self.transform_layer = ResNet(in_channels, hid_channels, resblock_num)
-
-    def forward(self, x):
-        x = self.transform_layer(x)
 
         return x
 
@@ -131,19 +67,18 @@ class CouplingLayer(nn.Module):
         self.mask_name = mask_name
         self.immobile = immobile
 
-        self.preprocessing_block = nn.Sequential(
-            nn.BatchNorm2d(in_channels),
-            nn.ReLU()
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        
+        self.block = nn.Sequential(
+            nn.ReLU(),
+            ResNet(2*in_channels, hid_channels, 2*in_channels, resblock_num)
         )
 
-        self.scaling_layer = ScalingNetwork(in_channels, hid_channels, resblock_num)
-        self.transform_layer = TransformNetwork(in_channels, hid_channels, resblock_num)
-
-        self.postprocessing_block = nn.Sequential(
-            nn.BatchNorm2d(in_channels)
-        )
+        self.bn2 = nn.BatchNorm2d(in_channels)
 
         self.mask = self.make_mask(input_dim, mask_name, immobile)
+        self.scale = nn.Parameter(torch.zeros(1), requires_grad=True)
+        self.scale_shift = nn.Parameter(torch.zeros(1), requires_grad=True)
     
     def make_mask(self, input_dim, mask_name, immobile):
         B, C, H, W = input_dim
@@ -181,30 +116,42 @@ class CouplingLayer(nn.Module):
 
         return mask.to(device)
 
+    def compute_mean_var(self, x):
+        mean = torch.mean(x, dim=(0,2,3), keepdim=True)
+        var = torch.var(x, dim=(0,2,3), keepdim=True)
+
+        return mean, var
+
     def forward(self, x, s_ld=0):
         B, C, H, W = x.size()
-
-        x = self.preprocessing_block(x)
-
         b = self.mask
-        s = self.scaling_layer(b*x)
-        t = self.transform_layer(b*x)
-        x = b*x + (1-b)*(x*torch.exp(s)+t)
 
-        x = self.postprocessing_block(x)
+        xmx = self.bn1(b*x)
+        xmx = torch.cat((xmx, -xmx), dim=1)
+        t, s = self.block(xmx).split(C, dim=1)
+        s = self.scale * torch.tanh(s) + self.scale_shift
+        t = t * (1.-b)
+        s = s * (1.-b)
 
+        x = x * torch.exp(s) + t
         s_ld += torch.sum(s.view(B, -1), dim=1)
 
-        return x, s_ld
+        return x, s_ld        
 
     def backward(self, x):
+        B, C, H, W = x.size()
         b = self.mask
-        s = self.scaling_layer(b*x)
-        t = self.transform_layer(b*x)
-        x = b*x + (1-b)*(x-t)*torch.exp(-s)
+
+        xmx = self.bn1(b*x)
+        xmx = torch.cat((xmx, -xmx), dim=1)
+        t, s = self.block(xmx).split(C, dim=1)
+        s = self.scale * torch.tanh(s) + self.scale_shift
+        t = t * (1.-b)
+        s = s * (1.-b)
+
+        x = (x-t) * torch.exp(-s)
 
         return x
-
 
 class RealNVPBlock(nn.Module):
     def __init__(self, input_dim, in_channels, hid_channels, resblock_num):
@@ -273,9 +220,13 @@ class RealNVPBlock(nn.Module):
         return x
 
 class RealNVP(nn.Module):
-    def __init__(self, input_dim, in_channels, hid_channels, resblock_num):
+    def __init__(self, input_dim, in_channels, hid_channels, resblock_num, dataset):
         super(RealNVP, self).__init__()
-        self.recursion_num = int(torch.log2(torch.Tensor([input_dim[2]])).item()) -1
+
+        if dataset == 'cifar10':
+            self.recursion_num = 1
+        else:
+            self.recursion_num = int(torch.log2(torch.Tensor([input_dim[2]])).item()) -1
 
         B, C, H, W = input_dim
 

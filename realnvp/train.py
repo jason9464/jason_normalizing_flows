@@ -18,6 +18,11 @@ def set_variables(args):
         d_channel = 3
         feature_num = 32
         resblock_num = 2
+    elif d_name == 'mnist':
+        input_dim = (batch_size, 1, 32, 32)
+        d_channel = 1
+        feature_num = 32
+        resblock_num = 2
     else:
         raise NotImplementedError
 
@@ -75,7 +80,7 @@ def valid(args):
     else:
         device = torch.device("cpu")
 
-    realnvp_model = realnvp.RealNVP(img_dim, d_channel, feature_num, resblock_num).to(device)
+    realnvp_model = realnvp.RealNVP(img_dim, d_channel, feature_num, resblock_num, args.dataset).to(device)
     
     iter_num = args.recall_iter
 
@@ -98,6 +103,8 @@ def valid(args):
         valid_loss = total_loss / len(validloader)
 
         print("Valid loss: {:.2f}".format(valid_loss))
+    
+    return valid_loss
 
 def train(args):
     writer = SummaryWriter('runs')
@@ -111,7 +118,7 @@ def train(args):
     else:
         device = torch.device("cpu")
 
-    realnvp_model = realnvp.RealNVP(input_dim, d_channel, feature_num, resblock_num).to(device)
+    realnvp_model = realnvp.RealNVP(input_dim, d_channel, feature_num, resblock_num, args.dataset).to(device)
     
 
     optimizer = optim.Adam(realnvp_model.parameters(), weight_decay=5e-5)
@@ -171,13 +178,13 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=\
         "RealNVP training program.")
-    parser.add_argument("--dataset", type=str, default="cifar10", \
-        help="Select dataset to train. expected value: [cifar10, imagenet, lsun, celeba]")
+    parser.add_argument("--dataset", type=str, default="mnist", \
+        help="Select dataset to train. expected value: [cifar10, imagenet, lsun, celeba, mnist]")
     parser.add_argument("--batch_size", type=int, default=64, \
         help="Number of data to learn at a time")
     parser.add_argument("--excute_mode", type=str, default="train", \
         help="Select execute mode. expected value: [train, valid, sampling]")
-    parser.add_argument("--recall_iter", type=int, default=122410, \
+    parser.add_argument("--recall_iter", type=int, default=0, \
         help="Select the number of recall iter. 0 to start new iter.")
 
     arguments = parser.parse_args()
