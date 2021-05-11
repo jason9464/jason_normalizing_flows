@@ -26,15 +26,13 @@ Sampling data of MNIST dataset after 4000 iter
 
 
 #### 1. Load datasets  
-    CIFAR-10, Imagenet, LSUN, CelebA  
+    CIFAR-10, Imagenet, LSUN, CelebA, MNIST  
 #### 2. Data preprocessing  
-##### 2-1 Jittering procedure  
-    Not implemented
-##### 2-2 Reduce boundary effects  
-    Not implemented
-##### 2-3 horizontal filps  
+##### 2-1 Reduce boundary effects  
+    Use logit to reduce boundary effects
+##### 2-2 horizontal filps  
     For CIFAR-10, CelebA, LSUN  
-##### 2-4 Etc  
+##### 2-3 Etc  
     Imagenet: 32*32, 64*64 downsampling  
     LSUN: Use bedroom, tower, church categories  
         Downsample image so that the smallest side is 96 pixels and take random crops of 64*64  
