@@ -3,10 +3,10 @@ Pytorch implemantation of Laurent Dinh's paper [*Density estimation using Real N
 
 
 ### Sampling
-<img src = "./img/cifar10_50000.png" width="40%">  
+<img src = "./img/cifar10_50000.png" width="30%">  
 Sampling data of CIFAR-10 dataset after 50000 iter    
 
-<img src = "./img/mnist_sample.png" width="40%">  
+<img src = "./img/mnist_sample.png" width="30%">  
 Sampling data of MNIST dataset after 4000 iter    
 
 ### To use  
@@ -24,7 +24,7 @@ Sampling data of MNIST dataset after 4000 iter
       --recall_iter RECALL_ITER  
                             Select the number of recall iter. 0 to start new iter.  
 
-### Todo  
+
 #### 1. Load datasets  
     CIFAR-10, Imagenet, LSUN, CelebA  
 #### 2. Data preprocessing  
