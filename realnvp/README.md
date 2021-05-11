@@ -10,7 +10,7 @@ Sampling data of CIFAR-10 dataset after 50000 iter
 Sampling data of MNIST dataset after 4000 iter  
 
 ### To use  
-    usage: train.py [-h] [--dataset DATASET] [--batch_size BATCH_SIZE] [--excute_mode EXCUTE_MODE] [--recall_iter RECALL_ITER]  
+    train.py [-h] [--dataset DATASET] [--batch_size BATCH_SIZE] [--excute_mode EXCUTE_MODE] [--recall_iter RECALL_ITER]  
 
     RealNVP training program.  
 
