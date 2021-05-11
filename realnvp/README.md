@@ -4,8 +4,7 @@ Pytorch implemantation of Laurent Dinh's paper [*Density estimation using Real N
 
 ### Sampling
 <img src = "./img/cifar10_50000.png" width="30%">  
-Sampling data of CIFAR-10 dataset after 50000 iter    
-  
+Sampling data of CIFAR-10 dataset after 50000 iter<br><br>
 
 <img src = "./img/mnist_sample.png" width="30%">  
 Sampling data of MNIST dataset after 4000 iter    
